@@ -1,12 +1,15 @@
 import emoji
 import pyperclip
 import requests
+import time
 
-def calc(recovered, previous, today):
-    n_recovered = recovered - previous
-    pct_recovered = recovered / today
+def calculate_n_recovered(today, previous):
+    assert today >= previous, 'Today\'s recovered figure must be equal to or higher than yesterday!'
+    return today - previous
 
-    return n_recovered, pct_recovered
+def calculate_p_recovered(recovered, total):
+    assert recovered <= total, 'Recovered figure must be less than total figure!'
+    return recovered / total
 
 def get_request(url_short):
     header = {
@@ -19,15 +22,43 @@ def get_long_url(url_short):
     try:
         response = get_request(url_short)
         status_code = response.status_code
-
+        
         return '\n' + response.url if status_code == 200 else ''
     except Exception:
         return ''
+
+def poll_long_url(url_short, delay = 30, verbose = False):
+    status_code = 0
+    long_url = ''
+
+    try:
+        while(status_code != 200):
+            response = get_request(url_short)
+            status_code = response.status_code
+            long_url = response.url
+
+            if verbose:
+                print('Not released yet')
+
+            time.sleep(delay)
+        
+        if verbose:
+            print('Released')
+    except Exception:
+        pass
+    finally:
+        return long_url
 
 def get_long_url_predefined(n_new, n_discharged):
     return 'https://www.moh.gov.sg/news-highlights/details/' + \
         str(n_discharged) + '-more-cases-discharged-' + \
         str(n_new) + '-new-cases-of-covid-19-infection-confirmed'
+
+def write_to_file(file, total, discharged, deaths, critical):
+    report = '\n'.join([str(total), str(discharged), str(deaths), str(critical)])
+
+    with open(file, 'w') as f:
+        f.write(report)
 
 def report_v1(date_today_format, today_url, debug = False, file = 'covid19.txt'):
     # Get New Figures
@@ -81,13 +112,16 @@ def report_v1(date_today_format, today_url, debug = False, file = 'covid19.txt')
         '- Critical: ' + fig(critical, new_critical),
         '',
         today_url
-        ]
+    ]
 
     print()
     for m in message:
         print(m)
 
 def report_v2(today_url, debug = False, file = 'covid19-2.txt'):
+    long_url = get_long_url(today_url)
+
+    # This chunk to a separate portion
     with open(file, 'r') as f:
         previous_total = int(f.readline())
         previous_recovered = int(f.readline())
@@ -96,24 +130,36 @@ def report_v2(today_url, debug = False, file = 'covid19-2.txt'):
     today = new + previous_total
     recovered = int(input('Today Recovered: '))
 
-    if recovered < previous_recovered:
-        raise Exception('Recovered figure should be higher than previous recovered figure!')
+    if not(debug):
+        write_to_file(file, today, recovered, 28, 0)
+        # with open(file, 'w') as f:
+        #     f.write(str(today) +\
+        #         '\n' + str(recovered) +\
+        #         '\n' + str(28) +\
+        #         '\n' + str(0))
 
-    calculated = calc(recovered, previous_recovered, today)
-    singapore_flag = emoji.emojize(':singapore:')
+    # singapore_flag = emoji.emojize(':singapore:')
 
-    report = str(calculated[0]) + ' / ' + str(new) + '\n' + \
-        str(recovered) + ' / ' + str(today) + ' (' + '{:.2%}'.format(calculated[1]) + ')' + '\n\n' + \
-        today_url + get_long_url(today_url)
-    
+    message = [
+        str(calculate_n_recovered(recovered, previous_recovered)) + ' / ' + str(new),
+        str(recovered) + ' / ' + str(today) + ' (' + '{:.2%}'.format(calculate_p_recovered(recovered, today)) + ')',
+        '',
+        today_url + long_url
+    ]
+
+    return message
+
+def generate_report(message):
+    '''
+    Copy the report to the clipboard and print the report from the message.
+    '''
+
     try:
+        report = '\n'.join(message)
         pyperclip.copy(report)
     except pyperclip.PyperclipException:
         pass
-
-    if not(debug):
-        with open(file, 'w') as f:
-            f.write(str(today) +\
-                '\n' + str(recovered))
-
-    print(report)
+    except Exception:
+        pass
+    finally:
+        print(report)
