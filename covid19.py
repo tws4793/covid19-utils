@@ -1,8 +1,8 @@
 import requests
 import sys
 import time
-from datetime import date
 from utils.manual import new_figures
+from utils.date import get_date_head, get_date_url
 
 DEBUG = False
 DELAY = 30
@@ -10,20 +10,15 @@ FILE = 'covid19.txt'
 VERBOSE = True
 
 # Get Today's Date
-today = date.today()
-today_format = today.strftime('%-d %b %Y')
-today_url = 'go.gov.sg/moh' + today.strftime('%-d%b').lower()
+today_format = get_date_head()
+today_url = get_date_url()
 
 try:
-    path = 'https://' + today_url
-    header = {
-        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:77.0) Gecko/20100101 Firefox/77.0'
-    }
-    req = requests.get(path, headers = header)
+    req = new_figures.get_request(today_url)
 
     print(today_url)
     while (req.status_code != 200):
-        req = requests.get(path)
+        req = new_figures.get_request(today_url)
         if VERBOSE:
             print('Not released yet!')
         time.sleep(DELAY)
@@ -33,4 +28,4 @@ try:
 except KeyboardInterrupt:
     pass
 finally:
-    new_figures.out_new_figures(today_format, today_url, True, FILE)
+    new_figures.report_v1(today_format, today_url, True, FILE)

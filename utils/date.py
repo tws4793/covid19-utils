@@ -1,8 +1,8 @@
-import time
 from datetime import date
 
-def get_date(date = date.today()):
-    today_format = date.strftime('%-d %b %Y')
-    today_url = 'go.gov.sg/moh' + date.strftime('%-d%b').lower()
+def get_date_head(date = date.today()):
+    return date.strftime('%-d %b %Y')
 
-    return today_format, today_url
+def get_date_url(date = date.today(), include_protocol = True):
+    return ('https://' if include_protocol else '') +\
+        'go.gov.sg/moh' + date.strftime('%-d%b').lower()
