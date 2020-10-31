@@ -1,9 +1,0 @@
-version: '3'
-services:
-  python1:
-    image: python
-    container_name: python1
-    volumes:
-     - ..:/usr/src/app
-    working_dir: /usr/src/app
-    command: bash
