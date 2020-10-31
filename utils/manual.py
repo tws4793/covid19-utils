@@ -7,11 +7,11 @@ import pandas as pd
 from .date import *
 from .url import *
 
-def calculate_n_recovered(today, previous):
+def calculate_n_recovered(today: int, previous: int) -> int:
     assert today >= previous, 'Today\'s recovered figure must be equal to or higher than yesterday!'
     return today - previous
 
-def calculate_p_recovered(recovered, total):
+def calculate_p_recovered(recovered: int, total: int) -> float:
     assert recovered <= total, 'Recovered figure must be less than total figure!'
     return recovered / total
 
