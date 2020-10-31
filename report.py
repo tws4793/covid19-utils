@@ -1,23 +1,11 @@
-import argparse
-from utils import manual, date
-
-def arguments():
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument(
-        '-d',
-        help = 'debug mode',
-        action = 'store_true'
-    )
-
-    return parser.parse_args()
+from utils import manual, date, terminal, url
 
 def main():
-    # manual.poll_long_url(date.get_date_url(), verbose = True)
-
-    args = arguments()
+    args = terminal.arguments().parse_args()
     print(str(args))
     # manual.report_v1(date.get_date_head(), date.get_date_url(), True, 'covid19.txt')
+
+    report = manual.report_v2(debug = args.debug)
     report = manual.report_v2(date.get_date_url(), debug = args.d)
     manual.generate_report(report)
 

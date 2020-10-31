@@ -2,6 +2,10 @@ import emoji
 import pyperclip
 import requests
 import time
+import yaml
+import pandas as pd
+from .date import *
+from .url import *
 
 def calculate_n_recovered(today, previous):
     assert today >= previous, 'Today\'s recovered figure must be equal to or higher than yesterday!'
@@ -10,49 +14,6 @@ def calculate_n_recovered(today, previous):
 def calculate_p_recovered(recovered, total):
     assert recovered <= total, 'Recovered figure must be less than total figure!'
     return recovered / total
-
-def get_request(url_short):
-    header = {
-        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:77.0) Gecko/20100101 Firefox/77.0'
-    }
-
-    return requests.get(url_short, headers = header)
-
-def get_long_url(url_short):
-    try:
-        response = get_request(url_short)
-        status_code = response.status_code
-        
-        return '\n' + response.url if status_code == 200 else ''
-    except Exception:
-        return ''
-
-def poll_long_url(url_short, delay = 30, verbose = False):
-    status_code = 0
-    long_url = ''
-
-    try:
-        while(status_code != 200):
-            response = get_request(url_short)
-            status_code = response.status_code
-            long_url = response.url
-
-            if verbose:
-                print('Not released yet')
-
-            time.sleep(delay)
-        
-        if verbose:
-            print('Released')
-    except Exception:
-        pass
-    finally:
-        return long_url
-
-def get_long_url_predefined(n_new, n_discharged):
-    return 'https://www.moh.gov.sg/news-highlights/details/' + \
-        str(n_discharged) + '-more-cases-discharged-' + \
-        str(n_new) + '-new-cases-of-covid-19-infection-confirmed'
 
 def write_to_file(file, total, discharged, deaths, critical):
     report = '\n'.join([str(total), str(discharged), str(deaths), str(critical)])
@@ -114,12 +75,13 @@ def report_v1(date_today_format, today_url, debug = False, file = 'covid19.txt')
         today_url
     ]
 
-    print()
-    for m in message:
-        print(m)
+    return message
 
-def report_v2(today_url, debug = False, file = 'covid19-2.txt'):
-    long_url = get_long_url(today_url)
+def report_v2(debug: bool = False, file: str = 'covid19.txt', **kwargs):
+    # Get short and URL
+    date_parameter = get_date_parameter()
+    url_short = get_gov_short_url(date_parameter)
+    url_long = get_gov_long_url(date_parameter)
 
     # This chunk to a separate portion
     with open(file, 'r') as f:
@@ -132,22 +94,74 @@ def report_v2(today_url, debug = False, file = 'covid19-2.txt'):
 
     if not(debug):
         write_to_file(file, today, recovered, 28, 0)
-        # with open(file, 'w') as f:
-        #     f.write(str(today) +\
-        #         '\n' + str(recovered) +\
-        #         '\n' + str(28) +\
-        #         '\n' + str(0))
 
-    # singapore_flag = emoji.emojize(':singapore:')
+    return output_report_v2(
+        url_short = url_short,
+        url_long = url_long,
+        new_recovered = calculate_n_recovered(recovered, previous_recovered),
+        new_cases = new,
+        total_recovered = recovered,
+        total_cases = today,
+        percent_recovered = calculate_p_recovered(recovered, today)
+    )
 
+def report_v3(**kwargs):
+    '''
+    For now assume night only update
+    '''
+
+    # Read latest figures
+    df = read_figures()
+    latest = df.iloc[-1]
+
+    recovered = kwargs['recovered'] \
+        if 'recovered' in kwargs \
+            else latest['total_recovered']
+
+    # Get short and URL
+    date_parameter = get_date_parameter()
+    url_short = get_gov_short_url(date_parameter)
+    url_long = get_gov_long_url(url_short)
+
+    # Calculate
+    n_recovered = calculate_n_recovered(recovered, latest['total_recovered'])
+    p_recovered = calculate_p_recovered(recovered, latest['total_cases'])
+
+    return output_report_v2(
+        url_short = url_short,
+        url_long = url_long,
+        new_recovered = n_recovered,
+        new_cases = latest['new_cases'],
+        total_recovered = recovered,
+        total_cases = latest['total_cases'],
+        percent_recovered = p_recovered
+    )
+
+def output_report_v2(url_short: str = '', url_long: str = '', **kwargs):
+    '''
+    Parameters:
+        url_short (str)
+    Returns:
+        list of str: Each line of the report
+    '''
     message = [
-        str(calculate_n_recovered(recovered, previous_recovered)) + ' / ' + str(new),
-        str(recovered) + ' / ' + str(today) + ' (' + '{:.2%}'.format(calculate_p_recovered(recovered, today)) + ')',
+        str(kwargs['new_recovered']) + ' / ' + str(kwargs['new_cases']),
+        str(kwargs['total_recovered']) + ' / ' + str(kwargs['total_cases']) + \
+            ' (' + '{:.2%}'.format(kwargs['percent_recovered']) + ')',
         '',
-        today_url + long_url
+        url_short,
+        url_long
     ]
-
     return message
+
+def read_figures():
+    df = pd.read_csv('data/sandbox/figures.csv')
+    df['date'] = pd.to_datetime(df['date'])
+
+    return df
+
+def read_latest_figures(df):
+    return df.iloc[-1]
 
 def generate_report(message):
     '''
