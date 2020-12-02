@@ -2,6 +2,9 @@
 # Created by https://www.toptal.com/developers/gitignore/api/windows,macos,linux,jupyternotebooks,python,data
 # Edit at https://www.toptal.com/developers/gitignore?templates=windows,macos,linux,jupyternotebooks,python,data
 
+### Others ###
+covid19.txt
+
 ### Data ###
 *.csv
 *.dat
