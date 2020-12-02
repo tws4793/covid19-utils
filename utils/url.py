@@ -30,6 +30,28 @@ def poll_gov_long_url(url: str, delay: int = 30, verbose: bool = False):
     else:
         return poll_gov_long_url(url, delay, verbose)
 
+# def poll_long_url(url_short, delay = 30, verbose = False):
+#     status_code = 0
+#     long_url = ''
+
+#     try:
+#         while(status_code != 200):
+#             response = get_request(url_short)
+#             status_code = response.status_code
+#             long_url = response.url
+
+#             if verbose:
+#                 print('Not released yet')
+
+#             time.sleep(delay)
+        
+#         if verbose:
+#             print('Released')
+#     except Exception:
+#         pass
+#     finally:
+#         return long_url
+
 def get_gov_short_url(path: str, include_protocol: bool = True) -> str:
 
     url_short_gov = ('https://' if include_protocol else '') + 'go.gov.sg/'

@@ -1,11 +1,30 @@
-import emoji
-import pyperclip
 import requests
 import time
 import yaml
 import pandas as pd
 from .date import *
 from .url import *
+from datetime import date
+
+def calculate_figures(previous: int, new_figure = None, total = None):
+    '''
+    Parameters:
+        previous
+    Returns:
+        list of str: Each line of the report
+    '''
+
+    assert type(new_figure) != type(
+        total), 'Either new or total value must be entered!'
+
+    # figure_assertion = lambda x: assert x != None and isinstance(x, int), 'Figure must be an integer!'
+    figures = {
+        'new': int(new_figure) if new_figure != None else total - previous,
+        'total': int(total) if total != None else previous + new_figure
+    }
+
+    return figures
+
 
 def calculate_n_recovered(today: int, previous: int) -> int:
     assert today >= previous, 'Today\'s recovered figure must be equal to or higher than yesterday!'
@@ -16,12 +35,13 @@ def calculate_p_recovered(recovered: int, total: int) -> float:
     return recovered / total
 
 def write_to_file(file, total, discharged, deaths, critical):
-    report = '\n'.join([str(total), str(discharged), str(deaths), str(critical)])
+    report = '\n'.join([str(total), str(discharged),
+                        str(deaths), str(critical)])
 
     with open(file, 'w') as f:
         f.write(report)
 
-def report_v1(date_today_format, today_url, debug = False, file = 'covid19.txt'):
+def report_v1(date_today_format, today_url, debug: bool = False, file: str = 'covid19.txt'):
     # Get New Figures
     new_total = int(input('New Cases: '))
     new_discharged = int(input('New Discharged: '))
@@ -51,108 +71,57 @@ def report_v1(date_today_format, today_url, debug = False, file = 'covid19.txt')
     new_stable = new_active - new_critical
 
     # Write to file
-    with open(file[:-4] + ('.bak' if debug else '') + file[-4:], 'w') as f:
-        f.write(str(total) \
-            + '\n' + str(discharged)
-            + '\n' + str(deaths)
-            + '\n' + str(critical))
+    if not(debug):
+        write_to_file(file, total, discharged, deaths, critical)
 
-    fig = lambda i, j: str(i) + ' (' + ('%+d' % j if j != 0 else '-') + ')'
+    return {
+        'new_cases': new_total,
+        'total_cases': total,
+        'new_recovered': new_discharged,
+        'total_recovered': discharged,
+        'new_deaths': new_deaths,
+        'total_deaths': deaths,
+        'new_stable': new_stable,
+        'total_stable': stable,
+        'new_critical': new_critical,
+        'total_critical': critical
+    }
 
-    message = [
-        'COVID-19 Update as of ' + date_today_format +', 1200 hrs:',
-        '',
-        'Total: ' + fig(total, new_total),
-        '',
-        'Closed: ' + fig(closed, new_closed),
-        '- Discharged: ' + fig(discharged, new_discharged),
-        '- Deaths: ' + fig(deaths, new_deaths),
-        '',
-        'Active: ' + fig(active, new_active),
-        '- Stable: ' + fig(stable, new_stable),
-        '- Critical: ' + fig(critical, new_critical),
-        '',
-        today_url
-    ]
-
-    return message
-
-def report_v2(debug: bool = False, file: str = 'covid19.txt', **kwargs):
+def report_v2(arguments, debug: bool = False, file: str = 'covid19.txt'):
     # Get short and URL
-    date_parameter = get_date_parameter()
-    url_short = get_gov_short_url(date_parameter)
-    url_long = get_gov_long_url(date_parameter)
+    # date_parameter = get_date_parameter()
+    # url_short = get_gov_short_url(date_parameter)
+    # url_long = get_gov_long_url(date_parameter)
 
     # This chunk to a separate portion
     with open(file, 'r') as f:
         previous_total = int(f.readline())
         previous_recovered = int(f.readline())
+        previous_deaths = int(f.readline())
+        previous_critical = int(f.readline())
 
-    new = int(input('New Cases: '))
+    new = int(arguments['new_cases'])
     today = new + previous_total
-    recovered = int(input('Today Recovered: '))
+    recovered = int(arguments['total_recovered'])
+    deaths = previous_deaths + int(arguments['new_deaths'])
+    critical = int(arguments['total_icu'])
 
     if not(debug):
-        write_to_file(file, today, recovered, 28, 0)
+        write_to_file(file, today, recovered, deaths, critical)
 
-    return output_report_v2(
-        url_short = url_short,
-        url_long = url_long,
-        new_recovered = calculate_n_recovered(recovered, previous_recovered),
-        new_cases = new,
-        total_recovered = recovered,
-        total_cases = today,
-        percent_recovered = calculate_p_recovered(recovered, today)
-    )
-
-def report_v3(**kwargs):
-    '''
-    For now assume night only update
-    '''
-
-    # Read latest figures
-    df = read_figures()
-    latest = df.iloc[-1]
-
-    recovered = kwargs['recovered'] \
-        if 'recovered' in kwargs \
-            else latest['total_recovered']
-
-    # Get short and URL
-    date_parameter = get_date_parameter()
-    url_short = get_gov_short_url(date_parameter)
-    url_long = get_gov_long_url(url_short)
-
-    # Calculate
-    n_recovered = calculate_n_recovered(recovered, latest['total_recovered'])
-    p_recovered = calculate_p_recovered(recovered, latest['total_cases'])
-
-    return output_report_v2(
-        url_short = url_short,
-        url_long = url_long,
-        new_recovered = n_recovered,
-        new_cases = latest['new_cases'],
-        total_recovered = recovered,
-        total_cases = latest['total_cases'],
-        percent_recovered = p_recovered
-    )
-
-def output_report_v2(url_short: str = '', url_long: str = '', **kwargs):
-    '''
-    Parameters:
-        url_short (str)
-    Returns:
-        list of str: Each line of the report
-    '''
-    message = [
-        str(kwargs['new_recovered']) + ' / ' + str(kwargs['new_cases']),
-        str(kwargs['total_recovered']) + ' / ' + str(kwargs['total_cases']) + \
-            ' (' + '{:.2%}'.format(kwargs['percent_recovered']) + ')',
-        '',
-        url_short,
-        url_long
-    ]
-    return message
+    return {
+        # 'url_short': url_short,
+        # 'url_long': url_long,
+        'cases': {
+            'new': new,
+            'total': today
+        },
+        'recovered': {
+            'new': calculate_n_recovered(recovered, previous_recovered),
+            'total': recovered,
+            'percent': calculate_p_recovered(recovered, today)
+        }
+    }
 
 def read_figures():
     df = pd.read_csv('data/sandbox/figures.csv')
@@ -160,20 +129,30 @@ def read_figures():
 
     return df
 
+def get_latest_figures(figures, df):
+    df.at[0, ''] = 0
+
+def update_figures(**kwargs):
+    df = read_figures()
+    latest = df.tail(1)
+
+    # Read
+    if(latest['date'] == date.today()):
+        # Update
+        pass
+    else:
+        # Insert
+
+        # Read yesterday's figures
+        df_new = latest.copy()
+
+        # Update
+
+        # Append
+        df.append(df_new)
+
+    # Save table
+    df.to_csv('data/sandbox/figures.csv')
+
 def read_latest_figures(df):
     return df.iloc[-1]
-
-def generate_report(message):
-    '''
-    Copy the report to the clipboard and print the report from the message.
-    '''
-
-    try:
-        report = '\n'.join(message)
-        pyperclip.copy(report)
-    except pyperclip.PyperclipException:
-        pass
-    except Exception:
-        pass
-    finally:
-        print(report)

@@ -1,8 +1,5 @@
 from datetime import date
 
-def get_date_head(date = date.today()):
-    return date.strftime('%-d %b %Y')
-
 def get_date_parameter(date = date.today()):
     return 'moh' + date.strftime('%-d%b').lower()
 
