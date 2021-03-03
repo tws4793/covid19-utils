@@ -97,6 +97,24 @@ def get_moh_annexe_urls(url: str):
 
         return list(range(2))
 
+def generate_list(end = date.today()):
+    df2020 = pd.DataFrame(
+        {
+            'date': pd.date_range(start = '2020-02-07', end = '2020-12-31', freq = 'D')
+        }
+    )
+    df2020['url_short'] = 'moh' + df2020['date'].dt.strftime('%-d%b').str.lower()
+    df2021 = pd.DataFrame(
+        {
+            'date': pd.date_range(start = '2021-01-01', end = end, freq = 'D')
+        }
+    )
+    df2021['url_short'] = 'moh' + df2021['date'].dt.strftime('%d%m%y').str.lower()
+
+    df = pd.concat([df2020, df2021])
+
+    return df
+
 def generate_initial_list(start = '2020-02-07', end = date.today()):
     dates = pd.date_range(start, end, freq = 'D')
 
